@@ -4,75 +4,75 @@ var guid = 0, noop = function() {}, HALT = {}
 function createStream() {
 	function stream() {
 		if (arguments.length > 0) updateStream(stream, arguments[0], undefined)
-		return stream._state.value
+		return stream.state.value
 	}
 	initStream(stream, arguments)
-	
+
 	if (arguments.length > 0) updateStream(stream, arguments[0], undefined)
-	
+
 	return stream
 }
-function initStream(stream, args) {
+function initStream(stream) {
 	stream.constructor = createStream
-	stream._state = {id: guid++, value: undefined, error: undefined, state: 0, derive: undefined, recover: undefined, deps: {}, parents: [], errorStream: undefined, endStream: undefined}
+	stream.state = {id: guid++, value: undefined, error: undefined, state: 0, derive: undefined, recover: undefined, deps: {}, parents: [], errorStream: undefined, endStream: undefined}
 	stream.map = map, stream.ap = ap, stream.of = createStream
 	stream.valueOf = valueOf, stream.toJSON = toJSON
 	stream.run = run, stream.catch = doCatch
-	
+
 	Object.defineProperties(stream, {
 		error: {get: function() {
-			if (!stream._state.errorStream) {
+			if (!stream.state.errorStream) {
 				var errorStream = function() {
 					if (arguments.length > 0) updateStream(stream, undefined, arguments[0])
-					return stream._state.error
+					return stream.state.error
 				}
 				initStream(errorStream, [])
 				initDependency(errorStream, [stream], noop, noop)
-				stream._state.errorStream = errorStream
+				stream.state.errorStream = errorStream
 			}
-			return stream._state.errorStream
+			return stream.state.errorStream
 		}},
 		end: {get: function() {
-			if (!stream._state.endStream) {
+			if (!stream.state.endStream) {
 				var endStream = createStream()
 				endStream.map(function(value) {
 					if (value === true) unregisterStream(stream), unregisterStream(endStream)
 					return value
 				})
-				stream._state.endStream = endStream
+				stream.state.endStream = endStream
 			}
-			return stream._state.endStream
+			return stream.state.endStream
 		}}
 	})
 }
 function updateStream(stream, value, error) {
 	updateState(stream, value, error)
-	for (var id in stream._state.deps) updateDependency(stream._state.deps[id], false)
+	for (var id in stream.state.deps) updateDependency(stream.state.deps[id], false)
 	finalize(stream)
 }
 function updateState(stream, value, error) {
 	error = unwrapError(value, error)
-	if (error !== undefined && typeof stream._state.recover === "function") {
+	if (error !== undefined && typeof stream.state.recover === "function") {
 		try {
-			var recovered = stream._state.recover()
+			var recovered = stream.state.recover()
 			if (recovered === HALT) return
 			updateValues(stream, recovered, undefined)
 		}
 		catch (e) {updateValues(stream, undefined, e)}
 	}
 	else updateValues(stream, value, error)
-	stream._state.changed = true
-	if (stream._state.state !== 2) stream._state.state = 1
+	stream.state.changed = true
+	if (stream.state.state !== 2) stream.state.state = 1
 }
 function updateValues(stream, value, error) {
-	stream._state.value = value
-	stream._state.error = error
+	stream.state.value = value
+	stream.state.error = error
 }
 function updateDependency(stream, mustSync) {
-	var state = stream._state, parents = state.parents
+	var state = stream.state, parents = state.parents
 	if (parents.length > 0 && parents.filter(active).length === parents.length && (mustSync || parents.filter(changed).length > 0)) {
 		var failed = parents.filter(errored)
-		if (failed.length > 0) updateState(stream, undefined, failed[0]._state.error)
+		if (failed.length > 0) updateState(stream, undefined, failed[0].state.error)
 		else {
 			try {
 				var value = state.derive()
@@ -87,14 +87,14 @@ function updateDependency(stream, mustSync) {
 }
 function unwrapError(value, error) {
 	if (value != null && value.constructor === createStream) {
-		if (value._state.error !== undefined) error = value._state.error
-		else error = unwrapError(value._state.value, value._state.error)
+		if (value.state.error !== undefined) error = value.state.error
+		else error = unwrapError(value.state.value, value.state.error)
 	}
 	return error
 }
 function finalize(stream) {
-	stream._state.changed = false
-	for (var id in stream._state.deps) stream._state.deps[id]._state.changed = false
+	stream.state.changed = false
+	for (var id in stream.state.deps) stream.state.deps[id].state.changed = false
 }
 
 function run(fn) {
@@ -105,14 +105,14 @@ function run(fn) {
 }
 function doCatch(fn) {
 	var self = createStream(), stream = this
-	var derive = function() {return stream._state.value}
-	var recover = function() {return absorb(self, fn(stream._state.error))}
+	var derive = function() {return stream.state.value}
+	var recover = function() {return absorb(self, fn(stream.state.error))}
 	return initDependency(self, [stream], derive, recover)
 }
 function combine(fn, streams) {
 	return initDependency(createStream(), streams, function() {
 		var failed = streams.filter(errored)
-		if (failed.length > 0) throw failed[0]._state.error
+		if (failed.length > 0) throw failed[0].state.error
 		return fn.apply(this, streams.concat([streams.filter(changed)]))
 	}, undefined)
 }
@@ -120,53 +120,53 @@ function absorb(stream, value) {
 	if (value != null && value.constructor === createStream) {
 		value.error.map(stream.error)
 		value.map(stream)
-		if (value._state.state === 0) return HALT
-		if (value._state.error) throw value._state.error
-		value = value._state.value
+		if (value.state.state === 0) return HALT
+		if (value.state.error) throw value.state.error
+		value = value.state.value
 	}
 	return value
 }
 
 function initDependency(dep, streams, derive, recover) {
-	var state = dep._state
+	var state = dep.state
 	state.derive = derive
 	state.recover = recover
 	state.parents = streams.filter(notEnded)
-	
+
 	registerDependency(dep, state.parents)
 	updateDependency(dep, true)
-	
+
 	return dep
 }
 function registerDependency(stream, parents) {
 	for (var i = 0; i < parents.length; i++) {
-		parents[i]._state.deps[stream._state.id] = stream
-		registerDependency(stream, parents[i]._state.parents)
+		parents[i].state.deps[stream.state.id] = stream
+		registerDependency(stream, parents[i].state.parents)
 	}
 }
 function unregisterStream(stream) {
-	for (var i = 0; i < stream._state.parents.length; i++) {
-		var parent = stream._state.parents[i]
-		delete parent._state.deps[stream._state.id]
+	for (var i = 0; i < stream.state.parents.length; i++) {
+		var parent = stream.state.parents[i]
+		delete parent.state.deps[stream.state.id]
 	}
-	for (var id in stream._state.deps) {
-		var dependent = stream._state.deps[id]
-		var index = dependent._state.parents.indexOf(stream)
-		if (index > -1) dependent._state.parents.splice(index, 1)
+	for (var id in stream.state.deps) {
+		var dependent = stream.state.deps[id]
+		var index = dependent.state.parents.indexOf(stream)
+		if (index > -1) dependent.state.parents.splice(index, 1)
 	}
-	stream._state.state = 2 //ended
-	stream._state.deps = {}
+	stream.state.state = 2 //ended
+	stream.state.deps = {}
 }
 
 function map(fn) {return combine(function(stream) {return fn(stream())}, [this])}
 function ap(stream) {return combine(function(s1, s2) {return s1()(s2())}, [this, stream])}
-function valueOf() {return this._state.value}
-function toJSON() {return JSON.stringify(this._state.value)}
+function valueOf() {return this.state.value}
+function toJSON() {return JSON.stringify(this.state.value)}
 
-function active(stream) {return stream._state.state === 1}
-function changed(stream) {return stream._state.changed}
-function notEnded(stream) {return stream._state.state !== 2}
-function errored(stream) {return stream._state.error}
+function active(stream) {return stream.state.state === 1}
+function changed(stream) {return stream.state.changed}
+function notEnded(stream) {return stream.state.state !== 2}
+function errored(stream) {return stream.state.error}
 
 function reject(e) {
 	var stream = createStream()
