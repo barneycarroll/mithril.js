@@ -1,6 +1,5 @@
 "use strict"
 
-var coreRenderer = require("../render/render")
 var autoredraw = require("../api/autoredraw")
 
 module.exports = function(renderer, pubsub) {
