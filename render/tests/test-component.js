@@ -212,17 +212,6 @@ o.spec("component", function() {
 			o(root.firstChild.nodeType).equals(3)
 			o(root.firstChild.nodeValue).equals("0")
 		})
-		o("can return boolean", function() {
-			var component = {
-				view: function(vnode) {
-					return true
-				}
-			}
-			render(root, [{tag: component}])
-
-			o(root.firstChild.nodeType).equals(3)
-			o(root.firstChild.nodeValue).equals("true")
-		})
 		o("can return falsy boolean", function() {
 			var component = {
 				view: function(vnode) {
@@ -231,8 +220,7 @@ o.spec("component", function() {
 			}
 			render(root, [{tag: component}])
 
-			o(root.firstChild.nodeType).equals(3)
-			o(root.firstChild.nodeValue).equals("false")
+			o(root.firstChild.nodeLength).equals(0)
 		})
 		o("can return null", function() {
 			var component = {

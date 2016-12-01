@@ -40,20 +40,6 @@ o.spec("createText", function() {
 		o(vnode.dom.nodeName).equals("#text")
 		o(vnode.dom.nodeValue).equals("0")
 	})
-	o("creates boolean", function() {
-		var vnode = {tag: "#", children: true}
-		render(root, [vnode])
-
-		o(vnode.dom.nodeName).equals("#text")
-		o(vnode.dom.nodeValue).equals("true")
-	})
-	o("creates falsy boolean", function() {
-		var vnode = {tag: "#", children: false}
-		render(root, [vnode])
-
-		o(vnode.dom.nodeName).equals("#text")
-		o(vnode.dom.nodeValue).equals("false")
-	})
 	o("creates spaces", function() {
 		var vnode = {tag: "#", children: "   "}
 		render(root, [vnode])

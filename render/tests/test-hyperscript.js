@@ -226,7 +226,7 @@ o.spec("hyperscript", function() {
 
 			o(vnode.text).equals(true)
 		})
-		o("handles falsy boolean single child", function() {
+		o("handles false boolean single child", function() {
 			var vnode = m("div", {}, [false])
 
 			o(vnode.text).equals(false)
