@@ -202,31 +202,38 @@ var buildQueryString = function(object) {
 }
 var _8 = function($window, Promise) {
 	var callbackCount = 0
-	var count = 0
 	var oncompletion
 	function setCompletionCallback(callback) {oncompletion = callback}
-	function complete() {if (--count === 0 && typeof oncompletion === "function") oncompletion()}
-	function finalize(promise0) {
-		var then0 = promise0.then
-		promise0.then = function() {
-			count++
-			var next = then0.apply(promise0, arguments)
-			next.then(complete, function(e) {
-				complete()
-				throw e
-			})
-			return finalize(next)
+	function finalizer() {
+		var count = 0
+		function complete() {if (--count === 0 && typeof oncompletion === "function") oncompletion()}
+		return function finalize(promise0) {
+			var then0 = promise0.then
+			promise0.then = function() {
+				count++
+				var next = then0.apply(promise0, arguments)
+				next.then(complete, function(e) {
+					complete()
+					throw e
+				})
+				return finalize(next)
+			}
+			return promise0
 		}
-		return promise0
+	}
+	function normalize(args, extra) {
+		if (typeof args === "string") {
+			var url = args
+			args = extra || {}
+			if (args.url == null) args.url = url
+		}
+		return args
 	}
 	
 	function request(args, extra) {
-		return finalize(new Promise(function(resolve, reject) {
-			if (typeof args === "string") {
-				var url = args
-				args = extra || {}
-				if (args.url == null) args.url = url
-			}
+		var finalize = finalizer()
+		args = normalize(args, extra)
+		var promise0 = new Promise(function(resolve, reject) {
 			if (args.method == null) args.method = "GET"
 			args.method = args.method.toUpperCase()
 			var useBody = typeof args.useBody === "boolean" ? args.useBody : args.method !== "GET" && args.method !== "TRACE"
@@ -266,10 +273,14 @@ var _8 = function($window, Promise) {
 			}
 			if (useBody && (args.data != null)) xhr.send(args.data)
 			else xhr.send()
-		}))
+		})
+		return args.background === true ? promise0 : finalize(promise0)
 	}
-	function jsonp(args) {
-		return finalize(new Promise(function(resolve, reject) {
+	function jsonp(args, extra) {
+		var finalize = finalizer()
+		args = normalize(args, extra)
+		
+		var promise0 = new Promise(function(resolve, reject) {
 			var callbackName = args.callbackName || "_mithril_" + Math.round(Math.random() * 1e16) + "_" + callbackCount++
 			var script = $window.document.createElement("script")
 			$window[callbackName] = function(data) {
@@ -287,7 +298,8 @@ var _8 = function($window, Promise) {
 			args.data[args.callbackKey || "callback"] = callbackName
 			script.src = assemble(args.url, args.data)
 			$window.document.documentElement.appendChild(script)
-		}))
+		})
+		return args.background === true? promise0 : finalize(promise0)
 	}
 	function interpolate(url, data) {
 		if (data == null) return url
@@ -441,9 +453,16 @@ var coreRenderer = function($window) {
 		else if (old == null) createNodes(parent, vnodes, 0, vnodes.length, hooks, nextSibling, undefined)
 		else if (vnodes == null) removeNodes(old, 0, old.length, vnodes)
 		else {
-			if (old.length === vnodes.length && vnodes[0] != null && vnodes[0].key == null) {
+			var isUnkeyed = false
+			for (var i = 0; i < vnodes.length; i++) {
+				if (vnodes[i] != null) {
+					isUnkeyed = vnodes[i].key == null
+					break
+				}
+			}
+			if (old.length === vnodes.length && isUnkeyed) {
 				for (var i = 0; i < old.length; i++) {
-					if (old[i] === vnodes[i] || old[i] == null && vnodes[i] == null) continue
+					if (old[i] === vnodes[i]) continue
 					else if (old[i] == null) insertNode(parent, createNode(vnodes[i], hooks, ns), getNextSibling(old, i + 1, nextSibling))
 					else if (vnodes[i] == null) removeNodes(old, i, i + 1, vnodes)
 					else updateNode(parent, old[i], vnodes[i], hooks, getNextSibling(old, i + 1, nextSibling), false, ns)
@@ -818,15 +837,16 @@ var coreRenderer = function($window) {
 	//event
 	function updateEvent(vnode, key2, value) {
 		var element = vnode.dom
-		var callback = function(e) {
+		var callback = typeof onevent !== "function" ? value : function(e) {
 			var result = value.call(element, e)
-			if (typeof onevent === "function") onevent.call(element, e)
+			onevent.call(element, e)
 			return result
 		}
 		if (key2 in element) element[key2] = typeof value === "function" ? callback : null
 		else {
 			var eventName = key2.slice(2)
 			if (vnode.events === undefined) vnode.events = {}
+			if (vnode.events[key2] === callback) return
 			if (vnode.events[key2] != null) element.removeEventListener(eventName, vnode.events[key2], false)
 			if (typeof value === "function") {
 				vnode.events[key2] = callback
@@ -862,7 +882,7 @@ var coreRenderer = function($window) {
 		if (!dom) throw new Error("Ensure the DOM element being passed to m.route/m.mount/m.render is not undefined.")
 		var hooks = []
 		var active = $doc.activeElement
-		// First time rendering into a node clears it out
+		// First time0 rendering into a node clears it out
 		if (dom.vnodes == null) dom.textContent = ""
 		if (!(vnodes instanceof Array)) vnodes = [vnodes]
 		updateNodes(dom, dom.vnodes, Vnode.normalizeChildren(vnodes), hooks, null, undefined)
@@ -871,6 +891,26 @@ var coreRenderer = function($window) {
 		if ($doc.activeElement !== active) active.focus()
 	}
 	return {render: render, setEventCallback: setEventCallback}
+}
+function throttle(callback) {
+	//60fps translates to 16.6ms, round it down since setTimeout requires int
+	var time = 16
+	var last = 0, pending = null
+	var timeout = typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout
+	return function() {
+		var now = Date.now()
+		if (last === 0 || now - last >= time) {
+			last = now
+			callback()
+		}
+		else if (pending === null) {
+			pending = timeout(function() {
+				pending = null
+				callback()
+				last = Date.now()
+			}, time - (now - last))
+		}
+	}
 }
 var _11 = function($window) {
 	var renderService = coreRenderer($window)
@@ -881,7 +921,7 @@ var _11 = function($window) {
 	var callbacks = []
 	function subscribe(key1, callback) {
 		unsubscribe(key1)
-		callbacks.push(key1, callback)
+		callbacks.push(key1, throttle(callback))
 	}
 	function unsubscribe(key1) {
 		var index = callbacks.indexOf(key1)
@@ -897,27 +937,6 @@ var _11 = function($window) {
 var redrawService = _11(window)
 requestService.setCompletionCallback(redrawService.redraw)
 var _16 = function(redrawService0) {
-	function throttle(callback0) {
-		//60fps translates to 16.6ms, round it down since setTimeout requires int
-		var time = 16
-		var last = 0, pending = null
-		var timeout = typeof requestAnimationFrame === "function" ? requestAnimationFrame : setTimeout
-		return function() {
-			var now = Date.now()
-			if (last === 0 || now - last >= time) {
-				last = now
-				callback0()
-			}
-			else if (pending === null) {
-				pending = timeout(function() {
-					pending = null
-					callback0()
-					last = Date.now()
-				}, time - (now - last))
-			}
-		}
-	}
-	
 	return function(root, component) {
 		if (component === null) {
 			redrawService0.render(root, [])
@@ -927,35 +946,36 @@ var _16 = function(redrawService0) {
 		
 		if (component.view == null) throw new Error("m.mount(element, component) expects a component, not a vnode")
 		
-		var run0 = throttle(function() {
+		var run0 = function() {
 			redrawService0.render(root, Vnode(component))
-		})
+		}
 		redrawService0.subscribe(root, run0)
-		run0()
+		redrawService0.redraw()
 	}
 }
 m.mount = _16(redrawService)
+var Promise = PromisePolyfill
 var parseQueryString = function(string) {
 	if (string === "" || string == null) return {}
 	if (string.charAt(0) === "?") string = string.slice(1)
 	var entries = string.split("&"), data0 = {}, counters = {}
 	for (var i = 0; i < entries.length; i++) {
 		var entry = entries[i].split("=")
-		var key4 = decodeURIComponent(entry[0])
+		var key5 = decodeURIComponent(entry[0])
 		var value = entry.length === 2 ? decodeURIComponent(entry[1]) : ""
 		if (value === "true") value = true
 		else if (value === "false") value = false
-		var levels = key4.split(/\]\[?|\[/)
+		var levels = key5.split(/\]\[?|\[/)
 		var cursor = data0
-		if (key4.indexOf("[") > -1) levels.pop()
+		if (key5.indexOf("[") > -1) levels.pop()
 		for (var j = 0; j < levels.length; j++) {
 			var level = levels[j], nextLevel = levels[j + 1]
 			var isNumber = nextLevel == "" || !isNaN(parseInt(nextLevel, 10))
 			var isValue = j === levels.length - 1
 			if (level === "") {
-				var key4 = levels.slice(0, j).join()
-				if (counters[key4] == null) counters[key4] = 0
-				level = counters[key4]++
+				var key5 = levels.slice(0, j).join()
+				if (counters[key5] == null) counters[key5] = 0
+				level = counters[key5]++
 			}
 			if (cursor[level] == null) {
 				cursor[level] = isValue ? value : isNumber ? [] : {}
@@ -970,18 +990,18 @@ var coreRouter = function($window) {
 	var callAsync0 = typeof setImmediate === "function" ? setImmediate : setTimeout
 	var prefix1 = "#!"
 	function setPrefix(value) {prefix1 = value}
-	function normalize(fragment0) {
+	function normalize1(fragment0) {
 		var data = $window.location[fragment0].replace(/(?:%[a-f89][a-f0-9])+/gim, decodeURIComponent)
 		if (fragment0 === "pathname" && data[0] !== "/") data = "/" + data
 		return data
 	}
 	var asyncId
-	function debounceAsync(f) {
-		return function(e) {
+	function debounceAsync(callback0) {
+		return function() {
 			if (asyncId != null) return
 			asyncId = callAsync0(function() {
 				asyncId = null
-				f(e)
+				callback0()
 			})
 		}
 	}
@@ -992,27 +1012,27 @@ var coreRouter = function($window) {
 		if (queryIndex > -1) {
 			var queryEnd = hashIndex > -1 ? hashIndex : path.length
 			var queryParams = parseQueryString(path.slice(queryIndex + 1, queryEnd))
-			for (var key3 in queryParams) queryData[key3] = queryParams[key3]
+			for (var key4 in queryParams) queryData[key4] = queryParams[key4]
 		}
 		if (hashIndex > -1) {
 			var hashParams = parseQueryString(path.slice(hashIndex + 1))
-			for (var key3 in hashParams) hashData[key3] = hashParams[key3]
+			for (var key4 in hashParams) hashData[key4] = hashParams[key4]
 		}
 		return path.slice(0, pathEnd)
 	}
 	function getPath() {
 		var type2 = prefix1.charAt(0)
 		switch (type2) {
-			case "#": return normalize("hash").slice(prefix1.length)
-			case "?": return normalize("search").slice(prefix1.length) + normalize("hash")
-			default: return normalize("pathname").slice(prefix1.length) + normalize("search") + normalize("hash")
+			case "#": return normalize1("hash").slice(prefix1.length)
+			case "?": return normalize1("search").slice(prefix1.length) + normalize1("hash")
+			default: return normalize1("pathname").slice(prefix1.length) + normalize1("search") + normalize1("hash")
 		}
 	}
 	function setPath(path, data, options) {
 		var queryData = {}, hashData = {}
 		path = parsePath(path, queryData, hashData)
 		if (data != null) {
-			for (var key3 in data) queryData[key3] = data[key3]
+			for (var key4 in data) queryData[key4] = data[key4]
 			path = path.replace(/:([^\/]+)/g, function(match2, token) {
 				delete queryData[token]
 				return data[token]
@@ -1025,16 +1045,12 @@ var coreRouter = function($window) {
 		if (supportsPushState) {
 			if (options && options.replace) $window.history.replaceState(null, null, prefix1 + path)
 			else $window.history.pushState(null, null, prefix1 + path)
-			$window.onpopstate(true)
+			$window.onpopstate()
 		}
 		else $window.location.href = prefix1 + path
 	}
 	function defineRoutes(routes, resolve, reject) {
-		if (supportsPushState) $window.onpopstate = debounceAsync(resolveRoute)
-		else if (prefix1.charAt(0) === "#") $window.onhashchange = resolveRoute
-		resolveRoute(true)
-		
-		function resolveRoute(isRouteChange) {
+		function resolveRoute() {
 			var path = getPath()
 			var params = {}
 			var pathname = parsePath(path, params, params)
@@ -1048,14 +1064,17 @@ var coreRouter = function($window) {
 						for (var i = 0; i < keys.length; i++) {
 							params[keys[i].replace(/:|\./g, "")] = decodeURIComponent(values[i])
 						}
-						resolve(routes[route0], params, path, route0, !!isRouteChange)
+						resolve(routes[route0], params, path, route0)
 					})
 					return
 				}
 			}
 			reject(path, params)
 		}
-		return function() {resolveRoute(false)}
+		
+		if (supportsPushState) $window.onpopstate = debounceAsync(resolveRoute)
+		else if (prefix1.charAt(0) === "#") $window.onhashchange = resolveRoute
+		resolveRoute()
 	}
 	function link(vnode2) {
 		vnode2.dom.setAttribute("href", prefix1 + vnode2.attrs.href)
@@ -1072,41 +1091,41 @@ var coreRouter = function($window) {
 }
 var _20 = function($window, redrawService0) {
 	var routeService = coreRouter($window)
-	
 	var identity = function(v) {return v}
-	var current = {render: identity, component: null, path: null, resolve: null}
+	var resolver, component, attrs3, currentPath, resolve
 	var route = function(root, defaultRoute, routes) {
 		if (root == null) throw new Error("Ensure the DOM element that was passed to `m.route` is not undefined")
-		var render1 = function(resolver, component, params, path) {
-			current.render = resolver.render || identity
-			current.component = component
-			current.path = path
-			current.resolve = null
-			redrawService0.render(root, current.render(Vnode(component, undefined, params)))
+		var update = function(routeResolver, comp, params, path) {
+			resolver = routeResolver, component = comp, attrs3 = params, currentPath = path, resolve = null
+			resolver.render = routeResolver.render || identity
+			render1()
 		}
-		var run1 = routeService.defineRoutes(routes, function(component, params, path, route, isRouteChange) {
-			if (component.view) render1({}, component, params, path)
+		var render1 = function() {
+			if (resolver != null) redrawService0.render(root, resolver.render(Vnode(component || "div", attrs3.key, attrs3)))
+		}
+		routeService.defineRoutes(routes, function(payload, params, path) {
+			if (payload.view) update({}, payload, params, path)
 			else {
-				if (component.onmatch) {
-					if (isRouteChange === false && current.path === path || current.resolve != null) render1(current, current.component, params)
+				if (payload.onmatch) {
+					if (resolve != null) update(payload, component, params, path)
 					else {
-						current.resolve = function(resolved) {
-							render1(component, resolved, params, path)
+						resolve = function(resolved) {
+							update(payload, resolved, params, path)
 						}
-						component.onmatch(function(resolved) {
-							if (current.path !== path && current.resolve != null) current.resolve(resolved)
-						}, params, path)
+						Promise.resolve(payload.onmatch(params, path)).then(function(resolved) {
+							if (resolve != null) resolve(resolved)
+						})
 					}
 				}
-				else render1(component, "div", params, path)
+				else update(payload, "div", params, path)
 			}
 		}, function() {
 			routeService.setPath(defaultRoute)
 		})
-		redrawService0.subscribe(root, run1)
+		redrawService0.subscribe(root, render1)
 	}
 	route.set = routeService.setPath
-	route.get = function() {return current.path}
+	route.get = function() {return currentPath}
 	route.prefix = routeService.setPrefix
 	route.link = routeService.link
 	return route
@@ -1117,14 +1136,14 @@ m.withAttr = function(attrName, callback1, context) {
 		return callback1.call(context || this, attrName in e.currentTarget ? e.currentTarget[attrName] : e.currentTarget.getAttribute(attrName))
 	}
 }
-var _27 = coreRenderer(window)
-m.render = _27.render
+var _28 = coreRenderer(window)
+m.render = _28.render
 m.redraw = redrawService.redraw
 m.request = requestService.request
 m.jsonp = requestService.jsonp
 m.parseQueryString = parseQueryString
 m.buildQueryString = buildQueryString
-m.version = "1.0.0-rc.5"
+m.version = "1.0.0-rc.6"
 if (typeof module !== "undefined") module["exports"] = m
 else window.m = m
 }

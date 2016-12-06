@@ -1,5 +1,6 @@
 # route(root, defaultRoute, routes)
 
+- [Description](#description)
 - [Signature](#signature)
 	- [Static members](#static-members)
 		- [route.set](#routeset)
@@ -18,6 +19,24 @@
 - [Wrapping a layout component](#wrapping-a-layout-component)
 - [Authentication](#authentication)
 - [Code splitting](#code-splitting)
+
+---
+
+### Description
+
+Navigate between "pages" within an application
+
+```javascript
+var Home = {
+	view: function() {
+		return "Welcome"
+	}
+}
+
+m.route(document.body, "/home", {
+	"/home": Home, // defines `http://localhost/#!/home`
+})
+```
 
 ---
 
@@ -88,18 +107,17 @@ A RouterResolver is an object that contains an `onmatch` method and/or a `render
 
 ##### routeResolver.onmatch
 
-The `onmatch` hook is called when the router needs to find a component to render. It is called once when a router path changes, but not on subsequent redraws. It can be used to run logic before a component initializes (for example authentication logic)
+The `onmatch` hook is called when the router needs to find a component to render. It is called once per router path changes, but not on subsequent redraws while on the same path. It can be used to run logic before a component initializes (for example authentication logic or analytics tracking)
 
-This method also allows you to asynchronously define what component will be rendered, making it suitable for code splitting and asynchronous module loading.
+This method also allows you to asynchronously define what component will be rendered, making it suitable for code splitting and asynchronous module loading. To render a component asynchronously return a promise that resolves to a component.
 
-`routeResolver.onmatch(resolve, args, requestedPath)`
+`routeResolver.onmatch(args, requestedPath)`
 
-Argument        | Type                     | Description
---------------- | ------------------------ | ---
-`resolve`       | `Component -> undefined` | Call this function with a component as the first argument to use it as the route's component
-`args`          | `Object`                 | The [routing parameters](#routing-parameters)
-`requestedPath` | `String`                 | The router path requested by the last routing action, including interpolated routing parameter values, but without the prefix. When `onmatch` is called, the resolution for this path is not complete and `m.route.get()` still returns the previous path.
-**returns**     |                          | Returns `undefined`
+Argument        | Type                           | Description
+--------------- | ------------------------------ | ---
+`args`          | `Object`                       | The [routing parameters](#routing-parameters)
+`requestedPath` | `String`                       | The router path requested by the last routing action, including interpolated routing parameter values, but without the prefix. When `onmatch` is called, the resolution for this path is not complete and `m.route.get()` still returns the previous path.
+**returns**     | `Promise<Component>|undefined` | Returns a promise that resolves to a component, or undefined
 
 ##### routeResolver.render
 
@@ -239,7 +257,7 @@ m.route(document.body, "/edit/pictures/image.jpg", {
 
 ---
 
-### Changing route prefix
+### Changing router prefix
 
 The router prefix is a fragment of the URL that dictates the underlying [strategy](routing-strategies.md) used by the router.
 
@@ -267,8 +285,8 @@ Instead of mapping a component to a route, you can specify a RouteResolver objec
 ```javascript
 m.route(document.body, "/", {
 	"/": {
-		onmatch: function(resolve, args, requestedPath) {
-			resolve(Home)
+		onmatch: function(args, requestedPath) {
+			return Home
 		},
 		render: function(vnode) {
 			return vnode // equivalent to m(Home)
@@ -347,10 +365,12 @@ var Login = {
 
 m.route(document.body, "/secret", {
 	"/secret": {
-		onmatch: function(resolve) {
-			if (isLoggedIn) resolve(Home)
-			else m.route.set("/login")
+		onmatch: function() {
+			if (!isLoggedIn) m.route.set("/login")
 		},
+		render: function() {
+			return m(Home)
+		}
 	},
 	"/login": Login
 })
@@ -364,9 +384,9 @@ For the sake of simplicity, in the example above, the user's logged in status is
 
 ### Code splitting
 
-In a large application, it may be desirable to download the code for each route on demand, rather than upfront. Dividing the codebase this way is known as code splitting or lazy loading. In Mithril, this can be accomplished by calling the `resolve` callback of the `onmatch` hook asynchronously:
+In a large application, it may be desirable to download the code for each route on demand, rather than upfront. Dividing the codebase this way is known as code splitting or lazy loading. In Mithril, this can be accomplished by returning a promise from the `onmatch` hook:
 
-At its simplest form, one could do the following:
+At its most basic form, one could do the following:
 
 ```javascript
 // Home.js
@@ -382,21 +402,20 @@ module.export = {
 
 ```javascript
 // index.js
-function load(file, done) {
-	m.request({
+function load(file) {
+	return m.request({
 		method: "GET",
 		url: file,
 		extract: function(xhr) {
 			return new Function("var module = {};" + xhr.responseText + ";return module.exports;")
 		}
 	})
-	.run(done)
 }
 
 m.route(document.body, "/", {
 	"/": {
-		onmatch: function(resolve) {
-			load("Home.js", resolve)
+		onmatch: function() {
+			return load("Home.js")
 		},
 	},
 })
@@ -409,9 +428,11 @@ Fortunately, there are a number of tools that facilitate the task of bundling mo
 ```javascript
 m.route(document.body, "/", {
 	"/": {
-		onmatch: function(resolve) {
+		onmatch: function() {
 			// using Webpack async code splitting
-			require(['./Home.js'], resolve)
+			return new Promise(function(resolve) {
+				require(['./Home.js'], resolve)
+			})
 		},
 	},
 })

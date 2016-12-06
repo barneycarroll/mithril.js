@@ -1,11 +1,21 @@
-# Migrating from `v0.2.x` to `v1.x`
+# Change log
+
+- [Migrating from v0.2.x](#migrating-from-v02x)
+
+---
+
+### Migrating from `v0.2.x`
 
 `v1.x` is largely API-compatible with `v0.2.x`, but there are some breaking changes.
+
+If you are migrating, consider using the [mithril-codemods](https://www.npmjs.com/package/mithril-codemods) tool to help automate the most straightforward migrations.
 
 - [`m.prop` removed](#mprop-removed)
 - [`m.component` removed](#mcomponent-removed)
 - [`config` function](#config-function)
-- [Cancelling redraw from event handlers](#cancelling-redraw-from-event-handlers)
+- [Changes in redraw behaviour](#changes-in-redraw-behaviour)
+   - [No more redraw locks](#no-more-redraw-locks)
+   - [Cancelling redraw from event handlers](#cancelling-redraw-from-event-handlers)
 - [Component `controller` function](#component-controller-function)
 - [Component arguments](#component-arguments)
 - [`view()` parameters](#view-parameters)
@@ -21,6 +31,8 @@
 - [`xlink` namespace required](#xlink-namespace-required)
 - [Nested arrays in views](#nested-arrays-in-views)
 - [`vnode` equality checks](#vnode-equality-checks)
+- [`m.startComputation`/`m.endComputation` removed](#mstartcomputationmendcomputation-removed)
+- [Synchronous redraw removed](#synchronous-redraw-removed)
 
 ---
 
@@ -108,7 +120,15 @@ If available the DOM-Element of the vnode can be accessed at `vnode.dom`.
 
 ---
 
-## Cancelling redraw from event handlers
+## Changes in redraw behaviour
+
+Mithril's rendering engine still operates on the basis of semi-automated global redraws, but some APIs and behaviours differ:
+
+### No more redraw locks
+
+In v0.2.x, Mithril allowed 'redraw locks' which temporarily prevented blocked draw logic: by default, `m.request` would lock the draw loop on execution and unlock when all pending requests had resolved - the same behaviour could be invoked manually using `m.startComputation()` and `m.endComputation()`. The latter APIs and the associated behaviour has been removed in v1.x. Redraw locking can lead to buggy UIs: the concerns of one part of the application should not be allowed to prevent other parts of the view from updating to reflect change.
+
+### Cancelling redraw from event handlers
 
 `m.mount()` and `m.route()` still automatically redraw after a DOM event handler runs. Cancelling these redraws from within your event handlers is now done by setting the `redraw` property on the passed-in event object to `false`.
 
@@ -443,7 +463,9 @@ var Component = {
 
 ## m.request
 
-Promises returned by [m.request](request.md) are no longer `m.prop` getter-setters. In addition, `initialValue` is no longer a supported option.
+Promises returned by [m.request](request.md) are no longer `m.prop` getter-setters. In addition, `initialValue`, `unwrapSuccess` and `unwrapError` are no longer supported options.
+
+In addition, requests no longer have `m.startComputation`/`m.endComputation` semantics. Instead, redraws are always triggered when a request promise chain completes (unless `background:true` is set).
 
 ### `v0.2.x`
 
@@ -543,3 +565,27 @@ Arrays now represent [fragments](fragment.md), which are structurally significan
 ## `vnode` equality checks
 
 If a vnode is strictly equal to the vnode occupying its place in the last draw, v1.x will skip that part of the tree without checking for mutations or triggering any lifecycle methods in the subtree. The component documentation contains [more detail on this issue](components.md#avoid-creating-component-instances-outside-views).
+
+---
+
+## `m.startComputation`/`m.endComputation` removed
+
+They are considered anti-patterns and have a number of problematic edge cases, so they no longer exist in v1.x
+
+---
+
+## Synchronous redraw removed
+
+In v0.2.x it was possible to force mithril to redraw immediately by passing a truthy value to `m.redraw()`. This behavior complicated usage of `m.redraw()` and caused some hard-to-reason about issues and has been removed.
+
+### `v0.2.x`
+
+```javascript
+m.redraw(true); // redraws immediately & synchronously
+```
+
+### `v1.x`
+
+```javascript
+m.redraw(); // schedules a redraw on the next requestAnimationFrame tick
+```

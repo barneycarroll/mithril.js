@@ -12,21 +12,21 @@
 
 ### What is Mithril?
 
-Mithril is a framework for developing Javascript-based Single Page Applications. It's designed to be fast, small and economical.
+Mithril is a framework for building Single Page Applications. It's small but batteries-included.
 
 ---
 
 ### Getting started
 
-The easiest way to try out Mithril is to include it from a CDN, and follow this tutorial. It'll only take 10 minutes.
+The easiest way to try out Mithril is to include it from a CDN, and follow this tutorial. It'll cover the majority of the API surface but it'll only take 10 minutes.
 
 Let's create an HTML file to follow along: 
 
 ```markup
-<div id="root"></div>
+<body></body>
 <script src="http://cdn.rawgit.com/lhorie/mithril.js/rewrite/mithril.js"></script>
 <script>
-var root = document.getElementById("root")
+var root = document.body
 
 // your code goes here!
 </script>
@@ -39,6 +39,8 @@ var root = document.getElementById("root")
 Let's start as small as well can: render some text on screen. Copy the code below into your file (and by copy, I mean type it out - you'll learn better)
 
 ```javascript
+var root = document.body
+
 m.render(root, "Hello world")
 ```
 
@@ -82,6 +84,16 @@ m("main", [
 	m("h1", {class: "title"}, "My first app"),
 	m("button", "A button"),
 ])
+```
+
+Note: If you prefer `<html>` syntax, [it's possible via Babel](https://babeljs.io/repl/#?code=%2F**%20%40jsx%20m%20*%2F%0A%3Ch1%3EMy%20first%20app%3C%2Fh1%3E).
+
+```markup
+// HTML syntax via Babel's JSX plugin
+<main>
+	<h1 class="title">My first app</h1>
+	<button>A button</button>
+</main>
 ```
 
 ---
@@ -180,7 +192,7 @@ Basically, XHR is just a way to talk to a server.
 
 Let's change our click counter to make it save data on a server. For the server, we'll use [REM](http://rem-rest-api.herokuapp.com), a mock REST API designed for toy apps like this tutorial.
 
-First we create a function that calls `m.request`.
+First we create a function that calls `m.request`. The `url` specifies an endpoint that represents a resource, the `method` specifies the type of action we're taking (typically the `PUT` method [upserts](https://en.wiktionary.org/wiki/upsert)), `data` is the payload that we're sending to the endpoint and `useCredentials` means to enable cookies (a requirement for the REM API to work)
 
 ```javascript
 var count = 0

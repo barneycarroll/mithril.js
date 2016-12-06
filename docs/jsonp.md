@@ -1,17 +1,36 @@
 # jsonp(options)
 
+- [Description](#description)
 - [Signature](#signature)
 - [How it works](#how-it-works)
 - [Typical usage](#typical-usage)
 
 ---
 
+### Description
+
+Makes JSON-P requests. Typically, it's useful to interact with servers that allow JSON-P but that don't have CORS enabled.
+
+```javascript
+m.jsonp({
+	url: "/api/v1/users/:id",
+	data: {id: 1},
+	callbackKey: "callback",
+})
+.then(function(result) {
+	console.log(result)
+})
+```
+
+---
+
 ### Signature
 
-`promise = m.jsonp(options)`
+`promise = m.jsonp([url,] options)`
 
 Argument               | Type                              | Required | Description
 ---------------------- | --------------------------------- | -------- | ---
+`url`                  | `String`                          | No       | If present, it's equivalent to having the option `{url: url}`. Values passed to the `options` argument override options set via this shorthand.
 `options.url`          | `String`                          | Yes      | The URL to send the request to. The URL may be either absolute or relative, and it may contain [interpolations](#dynamic-urls).
 `options.data`         | `any`                             | No       | The data to be interpolated into the URL and serialized into the querystring.
 `options.type`         | `any = Function(any)`             | No       | A constructor to be applied to each object in the response. Defaults to the [identity function](https://en.wikipedia.org/wiki/Identity_function).

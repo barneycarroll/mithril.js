@@ -1,45 +1,47 @@
 "use strict"
 
 var Vnode = require("../render/vnode")
+var Promise = require("../promise/promise")
 var coreRouter = require("../router/router")
 
 module.exports = function($window, redrawService) {
 	var routeService = coreRouter($window)
-	
+
 	var identity = function(v) {return v}
-	var current = {render: identity, component: null, path: null, resolve: null}
+	var resolver, component, attrs, currentPath, resolve
 	var route = function(root, defaultRoute, routes) {
 		if (root == null) throw new Error("Ensure the DOM element that was passed to `m.route` is not undefined")
-		var render = function(resolver, component, params, path) {
-			current.render = resolver.render || identity
-			current.component = component
-			current.path = path
-			current.resolve = null
-			redrawService.render(root, current.render(Vnode(component, undefined, params)))
+		var update = function(routeResolver, comp, params, path) {
+			resolver = routeResolver, component = comp, attrs = params, currentPath = path, resolve = null
+			resolver.render = routeResolver.render || identity
+			render()
 		}
-		var run = routeService.defineRoutes(routes, function(component, params, path, route, isRouteChange) {
-			if (component.view) render({}, component, params, path)
+		var render = function() {
+			if (resolver != null) redrawService.render(root, resolver.render(Vnode(component || "div", attrs.key, attrs)))
+		}
+		routeService.defineRoutes(routes, function(payload, params, path) {
+			if (payload.view) update({}, payload, params, path)
 			else {
-				if (component.onmatch) {
-					if (isRouteChange === false && current.path === path || current.resolve != null) render(current, current.component, params)
+				if (payload.onmatch) {
+					if (resolve != null) update(payload, component, params, path)
 					else {
-						current.resolve = function(resolved) {
-							render(component, resolved, params, path)
+						resolve = function(resolved) {
+							update(payload, resolved, params, path)
 						}
-						component.onmatch(function(resolved) {
-							if (current.path !== path && current.resolve != null) current.resolve(resolved)
-						}, params, path)
+						Promise.resolve(payload.onmatch(params, path)).then(function(resolved) {
+							if (resolve != null) resolve(resolved)
+						})
 					}
 				}
-				else render(component, "div", params, path)
+				else update(payload, "div", params, path)
 			}
 		}, function() {
 			routeService.setPath(defaultRoute)
 		})
-		redrawService.subscribe(root, run)
+		redrawService.subscribe(root, render)
 	}
 	route.set = routeService.setPath
-	route.get = function() {return current.path}
+	route.get = function() {return currentPath}
 	route.prefix = routeService.setPrefix
 	route.link = routeService.link
 	return route
