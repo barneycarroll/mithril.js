@@ -13,7 +13,7 @@ module.exports = function($window) {
 	function createNodes(parent, vnodes, start, end, hooks, nextSibling, ns) {
 		for (var i = start; i < end; i++) {
 			var vnode = vnodes[i]
-			if (vnode != null) {
+			if (vnode !== false) {
 				insertNode(parent, createNode(vnode, hooks, ns), nextSibling)
 			}
 		}

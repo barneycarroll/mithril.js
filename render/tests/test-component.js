@@ -63,8 +63,6 @@ o.spec("component", function() {
 			}
 			render(root, [{tag: component}])
 
-			console.log(root.firstChild)
-
 			o(root.childNodes.length).equals(0)
 
 			visible = true
