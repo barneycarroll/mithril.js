@@ -54,14 +54,19 @@ o.spec("component", function() {
 			o(root.firstChild.attributes["id"].nodeValue).equals("c")
 			o(root.firstChild.firstChild.nodeValue).equals("d")
 		})
-		o("updates root from null", function() {
+		o("updates root from false", function() {
 			var visible = false
 			var component = {
 				view: function(vnode) {
-					return visible ? {tag: "div"} : null
+					return visible && {tag: "div"}
 				}
 			}
 			render(root, [{tag: component}])
+
+			console.log(root.firstChild)
+
+			o(root.childNodes.length).equals(0)
+
 			visible = true
 			render(root, [{tag: component}])
 
@@ -80,19 +85,6 @@ o.spec("component", function() {
 
 			o(root.firstChild.nodeName).equals("DIV")
 		})
-		o("updates root to null", function() {
-			var visible = true
-			var component = {
-				view: function(vnode) {
-					return visible ? {tag: "div"} : null
-				}
-			}
-			render(root, [{tag: component}])
-			visible = false
-			render(root, [{tag: component}])
-
-			o(root.childNodes.length).equals(0)
-		})
 		o("updates root to primitive", function() {
 			var visible = true
 			var component = {
@@ -105,17 +97,6 @@ o.spec("component", function() {
 			render(root, [{tag: component}])
 
 			o(root.firstChild.nodeValue).equals("false")
-		})
-		o("updates root from null to null", function() {
-			var component = {
-				view: function(vnode) {
-					return null
-				}
-			}
-			render(root, [{tag: component}])
-			render(root, [{tag: component}])
-
-			o(root.childNodes.length).equals(0)
 		})
 		o("removes", function() {
 			var component = {
@@ -220,26 +201,6 @@ o.spec("component", function() {
 			}
 			render(root, [{tag: component}])
 
-			o(root.firstChild.nodeLength).equals(0)
-		})
-		o("can return null", function() {
-			var component = {
-				view: function(vnode) {
-					return null
-				}
-			}
-			render(root, [{tag: component}])
-
-			o(root.childNodes.length).equals(0)
-		})
-		o("can return undefined", function() {
-			var component = {
-				view: function(vnode) {
-					return undefined
-				}
-			}
-			render(root, [{tag: component}])
-
 			o(root.childNodes.length).equals(0)
 		})
 		o("throws a custom error if it returns itself", function() {
@@ -285,17 +246,6 @@ o.spec("component", function() {
 
 			o(root.firstChild.nodeType).equals(3)
 			o(root.firstChild.nodeValue).equals("a")
-		})
-		o("can update when returning null", function() {
-			var component = {
-				view: function(vnode) {
-					return null
-				}
-			}
-			render(root, [{tag: component}])
-			render(root, [{tag: component}])
-
-			o(root.childNodes.length).equals(0)
 		})
 		o("can remove when returning fragments", function() {
 			var component = {

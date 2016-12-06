@@ -717,18 +717,18 @@ o.spec("updateNodes", function() {
 	})
 	o("change type, position and length", function() {
 		var vnodes = {tag: "div", children: [
-			undefined, 
+			false,
 			{tag: "#", children: "a"}
 		]}
 		var updated = {tag: "div", children: [
 			{tag: "[", children: [{tag: "#", children: "b"}]},
-			undefined,
-			undefined
+			false,
+			false
 		]}
 
 		render(root, vnodes)
 		render(root, updated)
-		
+
 		o(root.firstChild.childNodes.length).equals(1)
 	})
 	o("removes then recreates then reverses children", function() {
@@ -879,39 +879,39 @@ o.spec("updateNodes", function() {
 
 		o(onupdate.callCount).equals(0)
 	})
-	o("null stays in place", function() {
+	o("false stays in place", function() {
 		var create = o.spy()
 		var update = o.spy()
 		var remove = o.spy()
 		var vnodes = [{tag: "div"}, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
-		var temp = [null, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
+		var temp = [false, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
 		var updated = [{tag: "div"}, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
-		
+
 		render(root, vnodes)
 		var before = vnodes[1].dom
 		render(root, temp)
 		render(root, updated)
 		var after = updated[1].dom
-		
+
 		o(before).equals(after)
 		o(create.callCount).equals(1)
 		o(update.callCount).equals(2)
 		o(remove.callCount).equals(0)
 	})
-	o("null stays in place if not first", function() {
+	o("false stays in place if not first", function() {
 		var create = o.spy()
 		var update = o.spy()
 		var remove = o.spy()
 		var vnodes = [{tag: "b"}, {tag: "div"}, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
-		var temp = [{tag: "b"}, null, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
+		var temp = [{tag: "b"}, false, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
 		var updated = [{tag: "b"}, {tag: "div"}, {tag: "a", attrs: {oncreate: create, onupdate: update, onremove: remove}}]
-		
+
 		render(root, vnodes)
 		var before = vnodes[2].dom
 		render(root, temp)
 		render(root, updated)
 		var after = updated[2].dom
-		
+
 		o(before).equals(after)
 		o(create.callCount).equals(1)
 		o(update.callCount).equals(2)

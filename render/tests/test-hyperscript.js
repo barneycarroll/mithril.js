@@ -3,8 +3,8 @@ var m = require("../../render/hyperscript")
 
 o.spec("hyperscript", function() {
 	o.spec("selector", function() {
-		o("throws on null selector", function(done) {
-			try {m(null)} catch(e) {done()}
+		o("throws when no selector is provided", function(done) {
+			try {m()} catch(e) {done()}
 		})
 		o("throws on non-string selector w/o a view property", function(done) {
 			try {m({})} catch(e) {done()}
@@ -216,30 +216,20 @@ o.spec("hyperscript", function() {
 
 			o(vnode.text).equals(1)
 		})
-		o("handles falsy number single child", function() {
-			var vnode = m("div", {}, [0])
-
-			o(vnode.text).equals(0)
-		})
-		o("handles boolean single child", function() {
-			var vnode = m("div", {}, [true])
-
-			o(vnode.text).equals(true)
-		})
-		o("handles false boolean single child", function() {
+		o("handles false single child", function() {
 			var vnode = m("div", {}, [false])
 
 			o(vnode.text).equals(false)
 		})
-		o("handles null single child", function() {
-			var vnode = m("div", {}, [null])
+		o("handles falsy string single child", function() {
+			var vnode = m("div", {}, [''])
 
-			o(vnode.children[0]).equals(null)
+			o(vnode.text).equals('')
 		})
-		o("handles undefined single child", function() {
-			var vnode = m("div", {}, [undefined])
+		o("handles falsy number single child", function() {
+			var vnode = m("div", {}, [0])
 
-			o(vnode.children[0]).equals(undefined)
+			o(vnode.text).equals(0)
 		})
 		o("handles multiple string children", function() {
 			var vnode = m("div", {}, ["", "a"])
@@ -265,34 +255,8 @@ o.spec("hyperscript", function() {
 			o(vnode.children[1].tag).equals("#")
 			o(vnode.children[1].children).equals(true)
 		})
-		o("handles multiple null/undefined child", function() {
-			var vnode = m("div", {}, [null, undefined])
-
-			o(vnode.children[0]).equals(null)
-			o(vnode.children[1]).equals(undefined)
-		})
 	})
 	o.spec("permutations", function() {
-		o("handles null attr and children", function() {
-			var vnode = m("div", null, [m("a"), m("b")])
-
-			o(vnode.children.length).equals(2)
-			o(vnode.children[0].tag).equals("a")
-			o(vnode.children[1].tag).equals("b")
-		})
-		o("handles null attr and child unwrapped", function() {
-			var vnode = m("div", null, m("a"))
-
-			o(vnode.children.length).equals(1)
-			o(vnode.children[0].tag).equals("a")
-		})
-		o("handles null attr and children unwrapped", function() {
-			var vnode = m("div", null, m("a"), m("b"))
-
-			o(vnode.children.length).equals(2)
-			o(vnode.children[0].tag).equals("a")
-			o(vnode.children[1].tag).equals("b")
-		})
 		o("handles attr and children", function() {
 			var vnode = m("div", {a: "b"}, [m("i"), m("s")])
 

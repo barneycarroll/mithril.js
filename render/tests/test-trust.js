@@ -16,14 +16,8 @@ o.spec("trust", function() {
 		o(vnode.tag).equals("<")
 		o(vnode.children).equals("abc")
 	})
-	o("casts null to empty string", function() {
-		var vnode = trust(null)
-
-		o(vnode.tag).equals("<")
-		o(vnode.children).equals("")
-	})
-	o("casts undefined to empty string", function() {
-		var vnode = trust(undefined)
+	o("casts false to empty string", function() {
+		var vnode = trust(false)
 
 		o(vnode.tag).equals("<")
 		o(vnode.children).equals("")
