@@ -8,16 +8,16 @@ module.exports = function($window, redrawService) {
 	var routeService = coreRouter($window)
 
 	var identity = function(v) {return v}
-	var resolver, component, attrs, currentPath, resolve
+	var routing = false, render, component, attrs, currentPath, resolve
 	var route = function(root, defaultRoute, routes) {
 		if (root == null) throw new Error("Ensure the DOM element that was passed to `m.route` is not undefined")
 		var update = function(routeResolver, comp, params, path) {
-			resolver = routeResolver, component = comp, attrs = params, currentPath = path, resolve = null
-			resolver.render = routeResolver.render || identity
-			render()
+			component = comp || "div", attrs = params, currentPath = path, resolve = null
+			render = (routeResolver.render || identity).bind(routeResolver)
+			run()
 		}
-		var render = function() {
-			if (resolver != null) redrawService.render(root, resolver.render(Vnode(component || "div", attrs.key, attrs)))
+		var run = function() {
+			if (render != null) redrawService.render(root, render(Vnode(component, attrs.key, attrs)))
 		}
 		routeService.defineRoutes(routes, function(payload, params, path) {
 			if (payload.view) update({}, payload, params, path)
@@ -38,11 +38,26 @@ module.exports = function($window, redrawService) {
 		}, function() {
 			routeService.setPath(defaultRoute)
 		})
-		redrawService.subscribe(root, render)
+		redrawService.subscribe(root, run)
 	}
-	route.set = routeService.setPath
+	route.set = function(path, data, options) {
+		if (resolve != null) options = {replace: true}
+		resolve = null
+		routeService.setPath(path, data, options)
+	}
 	route.get = function() {return currentPath}
-	route.prefix = routeService.setPrefix
-	route.link = routeService.link
+	route.prefix = function(prefix) {routeService.prefix = prefix}
+	route.link = function(vnode) {
+		vnode.dom.setAttribute("href", routeService.prefix + vnode.attrs.href)
+		vnode.dom.onclick = function(e) {
+			if (e.ctrlKey || e.metaKey || e.shiftKey || e.which === 2) return
+			e.preventDefault()
+			e.redraw = false
+			var href = this.getAttribute("href")
+			if (href.indexOf(routeService.prefix) === 0) href = href.slice(routeService.prefix.length)
+			route.set(href, undefined, undefined)
+		}
+	}
+
 	return route
 }
