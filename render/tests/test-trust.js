@@ -20,6 +20,6 @@ o.spec("trust", function() {
 		var vnode = trust(false)
 
 		o(vnode.tag).equals("<")
-		o(vnode.children).equals(false)
+		o(vnode.children).equals("")
 	})
 })

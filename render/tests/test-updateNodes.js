@@ -426,9 +426,9 @@ o.spec("updateNodes", function() {
 		o(updated[1].dom.nodeName).equals("I")
 		o(updated[1].dom).equals(root.childNodes[2])
 	})
-	o("populates array followed by null then el", function() {
-		var vnodes = [{tag: "[", key: 1, children: []}, null, {tag: "i", key: 2}]
-		var updated = [{tag: "[", key: 1, children: [{tag: "a"}, {tag: "b"}]}, null, {tag: "i", key: 2}]
+	o("populates array followed by false then el", function() {
+		var vnodes = [{tag: "[", key: 1, children: []}, false, {tag: "i", key: 2}]
+		var updated = [{tag: "[", key: 1, children: [{tag: "a"}, {tag: "b"}]}, false, {tag: "i", key: 2}]
 
 		render(root, vnodes)
 		render(root, updated)
@@ -458,9 +458,9 @@ o.spec("updateNodes", function() {
 		o(updated[1].dom.nodeName).equals("I")
 		o(updated[1].dom).equals(root.childNodes[2])
 	})
-	o("populates childless array followed by null then el", function() {
-		var vnodes = [{tag: "[", key: 1}, null, {tag: "i", key: 2}]
-		var updated = [{tag: "[", key: 1, children: [{tag: "a"}, {tag: "b"}]}, null, {tag: "i", key: 2}]
+	o("populates childless array followed by false then el", function() {
+		var vnodes = [{tag: "[", key: 1}, false, {tag: "i", key: 2}]
+		var updated = [{tag: "[", key: 1, children: [{tag: "a"}, {tag: "b"}]}, false, {tag: "i", key: 2}]
 
 		render(root, vnodes)
 		render(root, updated)
@@ -829,10 +829,10 @@ o.spec("updateNodes", function() {
 		o(root.childNodes[0].nodeName).equals("A")
 		o(root.childNodes[1].nodeName).equals("B")
 	})
-	o("fragment child toggles from null when followed by null component then tag", function() {
-		var component = {view: function() {return null}}
+	o("fragment child toggles from false when followed by false component then tag", function() {
+		var component = {view: function() {return false}}
 		var vnodes = [{tag: "[", children: [{tag: "a"}, {tag: component}, {tag: "b"}]}]
-		var temp = [{tag: "[", children: [null, {tag: component}, {tag: "b"}]}]
+		var temp = [{tag: "[", children: [false, {tag: component}, {tag: "b"}]}]
 		var updated = [{tag: "[", children: [{tag: "a"}, {tag: component}, {tag: "b"}]}]
 
 		render(root, vnodes)
@@ -843,10 +843,10 @@ o.spec("updateNodes", function() {
 		o(root.childNodes[0].nodeName).equals("A")
 		o(root.childNodes[1].nodeName).equals("B")
 	})
-	o("fragment child toggles from null in component when followed by null component then tag", function() {
+	o("fragment child toggles from false in component when followed by false component then tag", function() {
 		var flag = true
-		var a = {view: function() {return flag ? {tag: "a"} : null}}
-		var b = {view: function() {return null}}
+		var a = {view: function() {return flag ? {tag: "a"} : false}}
+		var b = {view: function() {return false}}
 		var vnodes = [{tag: "[", children: [{tag: a}, {tag: b}, {tag: "s"}]}]
 		var temp = [{tag: "[", children: [{tag: a}, {tag: b}, {tag: "s"}]}]
 		var updated = [{tag: "[", children: [{tag: a}, {tag: b}, {tag: "s"}]}]
