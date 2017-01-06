@@ -430,8 +430,7 @@ var coreRenderer = function($window) {
 		return element
 	}
 	function createComponent(vnode, hooks, ns) {
-		// For object literals since `Vnode()` always sets the `state` field.
-		if (!vnode.state) vnode.state = Object.create(vnode.tag)
+		vnode.state = Object.create(vnode.tag)
 		var view = vnode.tag.view
 		if (view.reentrantLock != null) return $emptyFragment
 		view.reentrantLock = true
