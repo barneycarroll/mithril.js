@@ -693,5 +693,36 @@ o.spec("component", function() {
 				o(vnode.state.data[0]).equals(body)
 			}
 		})
+		o("persists vnode between renders", function() {
+			var component = {
+				oninit: o.spy(),
+				onbeforeupdate: o.spy(),
+				view: function(){}
+			}
+			render(root, [{tag: component}])
+			render(root, [{tag: component}])
+
+			o(component.oninit.args[0]).equals(component.onbeforeupdate.args[0])
+		})
+		o("updates vnode.attrs on redraw", function() {
+			var spy = o.spy()
+			var component = {
+				oninit: function(vnode){
+					vnode.state.method = function(){
+						spy(vnode.attrs.value)
+					}
+				},
+				view: function(vnode){
+					vnode.state.method()
+				}
+			}
+			render(root, [{tag: component, attrs: {value: "a"}}])
+
+			o(spy.args[0]).equals("a")
+
+			render(root, [{tag: component, attrs: {value: "b"}}])
+
+			o(spy.args[0]).equals("b")
+		})
 	})
 })
