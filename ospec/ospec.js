@@ -70,29 +70,31 @@ module.exports = new function init() {
 				if (cursor === fns.length) return
 
 				var fn = fns[cursor++]
-				if (fn.length > 0) {
-					var timeout = 0, delay = 200, s = new Date
-					var isDone = false
-					var body = fn.toString()
-					var arg = (body.match(/\(([\w$]+)/) || body.match(/([\w$]+)\s*=>/) || []).pop()
-					if (body.indexOf(arg) === body.lastIndexOf(arg)) throw new Error("`" + arg + "()` should be called at least once")
-					try {
-						fn(function done() {
-							if (timeout !== undefined) {
-								timeout = clearTimeout(timeout)
-								if (delay !== Infinity) record(null)
-								if (!isDone) next()
-								else throw new Error("`" + arg + "()` should only be called once")
-								isDone = true
-							}
-							else console.log("# elapsed: " + Math.round(new Date - s) + "ms, expected under " + delay + "ms")
-						}, function(t) {delay = t})
+				var timeout = 0, delay = 200, s = new Date
+				var isDone = false
+				var output
+				function done() {
+					if (timeout !== undefined) {
+						timeout = clearTimeout(timeout)
+						if (delay !== Infinity) record(null)
+						isDone = true
 					}
-					catch (e) {
-						record(e.message, e)
-						subjects.pop()
-						next()
-					}
+					else console.log("# elapsed: " + Math.round(new Date - s) + "ms, expected under " + delay + "ms")
+				}
+				function fail(e){
+					record(e.message, e)
+					subjects.pop()
+					next()
+				}
+				try {
+					output = fn(done,function(t){delay = t})
+				}
+				catch (e) {
+					fail(e)
+				}
+				if (typeof output !== "undefined" && typeof output.then !== "undefined"){
+					output.then(done).catch(fail)
+
 					if (timeout === 0) {
 						timeout = setTimeout(function() {
 							timeout = undefined
@@ -102,7 +104,6 @@ module.exports = new function init() {
 					}
 				}
 				else {
-					fn()
 					nextTickish(next)
 				}
 			}
@@ -110,7 +111,7 @@ module.exports = new function init() {
 	}
 	function unique(subject) {
 		if (hasOwn.call(ctx, subject)) {
-			console.warn("A test or a spec named `" + subject + "` was already defined")	
+			console.warn("A test or a spec named `" + subject + "` was already defined")
 			while (hasOwn.call(ctx, subject)) subject += '*'
 		}
 		return subject
