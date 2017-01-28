@@ -72,16 +72,21 @@ module.exports = new function init() {
 				var fn = fns[cursor++]
 				var timeout = 0, delay = 200, s = new Date
 				var isDone = false
+				var failed = false
 				var output
 				function done() {
 					if (timeout !== undefined) {
 						timeout = clearTimeout(timeout)
 						if (delay !== Infinity) record(null)
+						if (!isDone) next()
+						else throw new Error("test has already resolved")
+
 						isDone = true
 					}
 					else console.log("# elapsed: " + Math.round(new Date - s) + "ms, expected under " + delay + "ms")
 				}
 				function fail(e){
+					failed = true
 					record(e.message, e)
 					subjects.pop()
 					next()
@@ -92,7 +97,8 @@ module.exports = new function init() {
 				catch (e) {
 					fail(e)
 				}
-				if (typeof output !== "undefined" && typeof output.then !== "undefined"){
+				if (failed) return
+				else if (typeof output !== "undefined" && typeof output.then !== "undefined"){
 					output.then(done).catch(fail)
 
 					if (timeout === 0) {
