@@ -29,11 +29,27 @@
 		</main>
 		<script src="lib/prism/prism.js"></script>
 		<script>
-		document.querySelector(".hamburger").onclick = function() {
-			document.body.className = document.body.className === "navigating" ? "" : "navigating"
-			document.querySelector("h1 + ul").onclick = function() {
-				document.body.className = ''
+		var body = document.body
+		var scrollTop
+		window.onresize = function() {
+			if (body.className === "navigating" && window.innerWidth > 767)
+				reset()
+		}
+		body.querySelector(".hamburger").onclick = function() {
+			if (body.className === "navigating")
+				reset()
+
+			else {
+				scrollTop = body.scrollTop
+				body.className = "navigating"
+				body.style.marginTop = - scrollTop + "px"
 			}
+		}
+		body.querySelector("h1 + ul").onclick = reset
+		function reset() {
+				body.className = ""
+				body.scrollTop = scrollTop
+				body.style.marginTop = ""
 		}
 		</script>
 	</body>
