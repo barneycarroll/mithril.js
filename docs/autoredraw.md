@@ -101,7 +101,7 @@ var StableComponent = {
 		vnode.state.height = vnode.dom.offsetHeight
 		m.redraw()
 	},
-	view: function() {
+	view: function(vnode) {		
 		return m("div", "This component is " + vnode.state.height + "px tall")
 	}
 }
