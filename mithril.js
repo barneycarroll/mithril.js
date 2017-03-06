@@ -28,19 +28,6 @@
 		return "v0.2.5"
 	}
 
-	var div = document.createElement("div")
-	var frag = document.createDocumentFragment()
-
-	function toDOM(HTML){
-		div.innerHTML = HTML
-
-		for (var i = 0; i < div.childNodes; i++) {
-			frag.appendChild(div.childNodes[i])
-		}
-
-		return frag
-	}
-
 	var hasOwn = {}.hasOwnProperty
 	var type = {}.toString
 
@@ -61,6 +48,21 @@
 	}
 
 	function noop() {}
+
+	var div = document.createElement("div")
+	var frag = document.createDocumentFragment()
+
+	function insertAdjacentHTML(target, location, content) {
+		if (false) target.insertAdjacentHTML(location, context)
+		else {
+			div.innerHTML = content
+			for (var i = 0; i < div.childNodes.length; i++) {
+				frag.appendChild(div.childNodes[i])
+			}
+			if (location === "beforebegin") target.insertBefore(frag)
+			else if (location === "beforeend") target.appendChild(frag)
+		}
+	}
 
 	var voidElements = {
 		AREA: 1,
@@ -1229,7 +1231,7 @@
 			parentElement.appendChild(
 				$document.createRange().createContextualFragment(data))
 		} catch (e) {
-			parentElement.insertBefore(toDOM(data), parentElement.lastChild)
+			insertAdjacentHTML(parentElement, "beforeend", data)
 			replaceScriptNodes(parentElement)
 		}
 	}
@@ -1272,10 +1274,10 @@
 			var placeholder = $document.createElement("span")
 			if (isElement) {
 				parentElement.insertBefore(placeholder, nextSibling || null)
-				parentElement.insertBefore(toDOM(data), placeholder)
+				insertAdjacentHTML(placeholder, "beforebegin", data)
 				parentElement.removeChild(placeholder)
 			} else {
-				parentElement.insertBefore(toDOM(data), nextSibling)
+				insertAdjacentHTML(nextSibling, "beforebegin", data)
 			}
 		} else {
 			appendTextFragment(parentElement, data)

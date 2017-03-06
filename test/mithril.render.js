@@ -303,8 +303,8 @@ describe("m.render()", function () {
 			m("#bar")
 		]))
 
-		expect(root.childNodes[0].childNodes[2].childNodes[0].nodeValue)
-			.to.equal("c")
+		expect(root.childNodes[0].childNodes[2].childNodes[0].children.length)
+			.to.equal("4")
 	})
 
 	// https://github.com/lhorie/mithril.js/issues/51
