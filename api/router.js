@@ -45,6 +45,22 @@ module.exports = function($window, redrawService) {
 	}
 	route.get = function() {return currentPath}
 	route.prefix = function(prefix) {routeService.prefix = prefix}
+	route.a = {view: function(vnode) {
+		var attrs = {}
+		for (var key in vnode.attrs) {
+			if (key === "data" || key === "key" || key === "onclick" || key === "options") continue
+			else if (key === "href") attrs.href = routeService.prefix + vnode.attrs.href
+			else attrs[key] = vnode.attrs[key]
+		}
+		attrs.onclick = function(e){
+			if (vnode.attrs.onclick) vnode.attrs.onclick.call(this, e)
+			if (e.ctrlKey || e.metaKey || e.shiftKey || e.which === 2) return
+			e.preventDefault()
+			e.redraw = false
+			route.set(vnode.attrs.href, vnode.attrs.data, vnode.attrs.options)
+		}
+		return Vnode("a", undefined, attrs, vnode.children)
+	}}
 	route.link = function(vnode) {
 		vnode.dom.setAttribute("href", routeService.prefix + vnode.attrs.href)
 		vnode.dom.onclick = function(e) {
